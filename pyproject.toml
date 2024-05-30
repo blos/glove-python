@@ -2,9 +2,10 @@
 name = "glove-python"
 version = "0.1.0"
 description = "An implementation of the original GloVe model with PyTorch and Lightning."
-authors = ["Your Name <you@example.com>"]
-license = "GPL-3"
+maintainers = ["blos"]
+license = "GPL-3-only"
 readme = "README.md"
+homepage = "https://github.com/blos/glove-python"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -15,14 +16,11 @@ numpy = "^1.26.4"
 datasets = "^2.19.1"
 lightning = "^2.2.5"
 
-
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.6"
 
 [tool.poetry.group.tensorboard.dependencies]
 tensorboard = "^2.16.2"
-
-
 
 [tool.ruff]
 target-version = "py310"
