@@ -1,14 +1,7 @@
-import pickle
-
 from torch import where, Tensor
 from torch.nn import Embedding
 from torch.optim import AdamW, Optimizer
 from lightning import LightningModule
-from lightning.pytorch import Trainer
-from lightning.pytorch.loggers.tensorboard import TensorBoardLogger
-
-from coocurrence import load_tokenizer
-from dataset import GloveDataset
 
 
 class Glove(LightningModule):
