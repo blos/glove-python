@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 /open-phi___textbooks/
 /data/
+/lightning_logs/

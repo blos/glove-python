@@ -1,56 +1,12 @@
-from typing import Any
-from re import sub
-from json import loads
+import pickle
 from multiprocessing import Process, Queue
 from os import getpid
-from typing import Generator
-import pickle
 
-from tokenizers import Tokenizer
 from scipy.sparse import lil_matrix
 from tqdm import tqdm
 
-
-def get_stopwords_from(filepath: str) -> list[str]:
-    stopwords = list()
-    with open(filepath, "r", encoding="utf8") as file:
-        for line in file:
-            stopwords.append(line.strip())
-    return stopwords
-
-
-def get_regex_from(stopwords: list[str]) -> str:
-    return r"\b(" + r"|".join(stopwords) + r")\b"
-
-
-def get_regex() -> str:
-    stopwords = get_stopwords_from("../data/stopwords.txt")
-    stopwords_regex = get_regex_from(stopwords)
-    special_character_regex = (
-        r"[^\s\w]+"  # all characters that are no whitespaces or word characters
-    )
-    digit_regex = r"[^\D]+"  # all digits
-    regex = rf"({stopwords_regex}|{special_character_regex}|{digit_regex})"
-    return regex
-
-
-def data_iterator() -> Generator[str, None, None]:
-    regex = get_regex()
-    with open(
-        "../data/simpleenglish_20240201/data.jsonl", "r", encoding="utf8"
-    ) as file:
-        for line in file:
-            # replace 'regex' with "" (nothing, equivalent to removing it)
-            yield sub(regex, "", loads(line.strip())["text"].lower())
-
-
-def concat_iterables(*iterables: list[Generator]) -> Any:
-    for iterable in iterables:
-        yield from iterable
-
-
-def load_tokenizer() -> Tokenizer:
-    return Tokenizer.from_file("../data/tokenizer.json")
+from utils import concat_iterables, get_data_iterator_from
+from tokenizer import load_tokenizer
 
 
 def calculate_word_word_coocurrence(
@@ -74,7 +30,7 @@ def calculate_word_word_coocurrence(
     return word_word_coocurrence
 
 
-def calculate_cooc(window_size: int = 2, max_docs: int = -1) -> lil_matrix:
+def singleprocess_cooc(huggingface_url: str, window_size: int = 2, max_docs: int = -1) -> lil_matrix:
     tokenizer = load_tokenizer()
     unk_token = tokenizer.encode("[UNK]").ids
     vocab_size = tokenizer.get_vocab_size()
@@ -84,7 +40,7 @@ def calculate_cooc(window_size: int = 2, max_docs: int = -1) -> lil_matrix:
     def filter_unk_token(unfiltered_doc):
         return [tok for tok in unfiltered_doc if tok != unk_token]
 
-    for doc_count, doc in tqdm(enumerate(data_iterator()), desc="doc"):
+    for doc_count, doc in tqdm(enumerate(get_data_iterator_from(huggingface_url)), desc="doc"):
         if doc_count == max_docs:
             break
         encoded_doc = tokenizer.encode(doc).ids
@@ -96,7 +52,7 @@ def calculate_cooc(window_size: int = 2, max_docs: int = -1) -> lil_matrix:
         )
         cooc_matrix += word_word_cooccurrence_mat
 
-    with open("../data/cooc_matrix_lil.pk", "wb") as file:
+    with open("./data/cooc_matrix_lil.pk", "wb") as file:
         pickle.dump(file, cooc_matrix)
 
     return cooc_matrix
@@ -107,7 +63,7 @@ def worker(
 ) -> int:
     """
     Gets a list of tokens and computes the word-word coocurrences based on a tokenized string.
-    Does effectivly does the heavy lifting by:
+    Does the heavy lifting by:
 
     1. Step: input_queue -> [1, 5, 2, 3, 0, 4]
     2. Step: word-word cooccurrences with window_size=2 in the form of "(center_token, context_token)" -> (1,5), (1,2), (5,1), (5,2), (5,3), (2,1), (2,3), (2,0), (3,5), (3,2), (3,0), (3,4), (0,2), (0,3), (0,4), (4,3), (4,0)
@@ -165,7 +121,7 @@ def worker(
     return 0  # process end with exitcode 0
 
 
-def feeder(queue: Queue, max_docs: int, worker_count: int) -> int:
+def feeder(queue: Queue, huggingface_url: str, max_docs: int, worker_count: int) -> int:
     """
     Loading and pre-processing the documents from disk.
     For memory efficiency generator objects are used.
@@ -182,8 +138,8 @@ def feeder(queue: Queue, max_docs: int, worker_count: int) -> int:
         return [tok for tok in unfiltered_doc if tok != unk_token]
 
     print(f"Feeder ({getpid()}): Starting", flush=True)
-    for doc_count, doc in enumerate(data_iterator()):
-        # limitting the amount of docs processed
+    for doc_count, doc in enumerate(get_data_iterator_from(huggingface_url)):
+        # limiting the amount of docs processed
         if doc_count == max_docs:
             break
         if doc_count % 1000 == 0:
@@ -202,7 +158,7 @@ def feeder(queue: Queue, max_docs: int, worker_count: int) -> int:
     return 0
 
 
-def collector(vocab_size: int, collector_queue: Queue) -> lil_matrix:
+def collector(vocab_size: int, worker_count: int, collector_queue: Queue) -> lil_matrix:
     """
     Collecting the partial cooccurrence matrices from the workers and combining them into a singular matrix.
 
@@ -235,7 +191,7 @@ def collector(vocab_size: int, collector_queue: Queue) -> lil_matrix:
 
 
 def multiprocess_cooc(
-    window_size: int = 2, max_docs: int = 10000, worker_count: int = 1
+    huggingface_url: str, window_size: int = 2, max_docs: int = 10000, worker_count: int = 1
 ):
     tok = load_tokenizer()
     vocab_size = tok.get_vocab_size()
@@ -246,7 +202,7 @@ def multiprocess_cooc(
 
     # init feeder
     print(f"Main ({getpid()}): Creating feeder", flush=True)
-    p = Process(target=feeder, args=(worker_queue, max_docs, worker_count))
+    p = Process(target=feeder, args=(worker_queue, huggingface_url, max_docs, worker_count))
     processes.append(p)
 
     # init workers
@@ -262,27 +218,12 @@ def multiprocess_cooc(
         process.start()
 
     word_word_cooccurrence = collector(
-        vocab_size=vocab_size, collector_queue=collector_queue
+        vocab_size=vocab_size, worker_count=worker_count, collector_queue=collector_queue
     )
-    with open("../data/multiprocess_cooc_matrix_lil.pk", "wb") as file:
+    with open("./data/multiprocess_cooc_matrix_lil.pk", "wb") as file:
         pickle.dump(word_word_cooccurrence, file)
 
     # when joining processes before collecting, deadlock is immanent because workers return lil_matrixes are too large
     for p in processes:
         p.join()
         print(f"Main ({getpid()}): joined Process {p.pid}", flush=True)
-
-
-if __name__ == "__main__":
-    window_size = 5
-    max_docs = -1
-    worker_count = 5
-
-    multiprocess_cooc(
-        window_size=window_size, max_docs=max_docs, worker_count=worker_count
-    )
-
-    # calculate_cooc(
-    #     window_size=window_size,
-    #     max_docs=max_docs
-    # )

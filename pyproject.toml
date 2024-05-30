@@ -12,13 +12,17 @@ tokenizers = "^0.19.1"
 scipy = "^1.13.1"
 tqdm = "^4.66.4"
 numpy = "^1.26.4"
-torch = "^2.3.0"
 datasets = "^2.19.1"
 lightning = "^2.2.5"
 
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.6"
+
+[tool.poetry.group.tensorboard.dependencies]
+tensorboard = "^2.16.2"
+
+
 
 [tool.ruff]
 target-version = "py310"

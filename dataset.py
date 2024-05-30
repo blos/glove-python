@@ -1,5 +1,6 @@
 import pickle
 from math import ceil
+from pathlib import Path
 from typing import Generator, Any
 
 import scipy
@@ -24,7 +25,6 @@ class GloveDataset(LightningDataModule):
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
-
         self._load_cooccurrences()
 
     def setup(self, stage: str) -> None:
@@ -65,17 +65,21 @@ class GloveDataset(LightningDataModule):
             }
 
     def _load_cooccurrences(self) -> csr_matrix:
-        with open("../data/multiprocess_cooc_matrix_lil.pk", "rb") as file:
+        filepath = Path(__file__).parent / "./data/multiprocess_cooc_matrix_lil.pk"
+        if not filepath.exists():
+            raise FileNotFoundError("You need to calculate the cooccurrenc matrix at first.")
+
+        with open(filepath, "rb") as file:
             m = pickle.load(file)
         self.cooccurrence_matrix = m.tocsr()
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=1)
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return DataLoader(self.valid_dataset, batch_size=self.batch_size, num_workers=1)
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=1)
 
 
