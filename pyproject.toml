@@ -2,6 +2,7 @@
 name = "glove-python"
 version = "0.1.0"
 description = "An implementation of the original GloVe model with PyTorch and Lightning."
+authors = ["blos <this.is.not.an.real.address@example.com>"]
 maintainers = ["blos"]
 license = "GPL-3-only"
 readme = "README.md"
