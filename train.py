@@ -37,12 +37,12 @@ def main():
         min_frequency=min_frequency,
         show_progress=show_progress
     )
-    # multiprocess_cooc(                 # or use: singleprocess_cooc
-    #     huggingface_url=huggingface_url,
-    #     window_size=window_size,
-    #     max_docs=max_docs,
-    #     worker_count=worker_count
-    # )
+    multiprocess_cooc(                 # or use: singleprocess_cooc
+        huggingface_url=huggingface_url,
+        window_size=window_size,
+        max_docs=max_docs,
+        worker_count=worker_count
+    )
     dm = GloveDataset(
         batch_size=batch_size,
     )
