@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "glove-python"
+version = "0.1.0"
+description = "An implementation of the original GloVe model with PyTorch and Lightning."
+authors = ["Your Name <you@example.com>"]
+license = "GPL-3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+tokenizers = "^0.19.1"
+scipy = "^1.13.1"
+tqdm = "^4.66.4"
+numpy = "^1.26.4"
+torch = "^2.3.0"
+datasets = "^2.19.1"
+lightning = "^2.2.5"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.6"
+
+[tool.ruff]
+target-version = "py310"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
