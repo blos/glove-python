@@ -1,6 +1,7 @@
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
 
+from tokenizer import train_tokenizer
 from dataset import GloveDataset
 from glove import Glove
 
@@ -14,6 +15,7 @@ def main():
     alpha = 3 / 4
     vocab_size = 30000
 
+    train_tokenizer(huggingface_url="open-phi/textbooks")
     dm = GloveDataset(
         batch_size=batch_size,
     )
@@ -42,5 +44,5 @@ def main():
     trainer.fit(model, dm.train_dataloader())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
